@@ -4,8 +4,6 @@
 
 A clone-and-run Playwright framework aimed at hiring conversations. It is not a bag of specs: there is a real system under test (UI, REST API, Postgres, RabbitMQ), a typed harness around it, Gherkin for readable coverage, and CI that publishes HTML and Allure reports.
 
-Tracked on Jira project **PT** (epics PT-1 through PT-8).
-
 ## What you can prove in ten minutes
 
 1. `docker compose up -d --wait --build`
