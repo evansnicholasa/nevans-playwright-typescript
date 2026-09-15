@@ -1,0 +1,14 @@
+node_modules/
+demo/node_modules/
+dist/
+test-results/
+playwright-report/
+allure-results/
+allure-report/
+.features-gen/
+logs/
+.env
+.env.local
+.env.staging
+*.log
+.DS_Store
