@@ -1,0 +1,25 @@
+---
+description: Keep the Jira PT board in sync with work, including comments for decisions.
+alwaysApply: true
+---
+
+# Jira board hygiene
+
+This repo is tracked in Jira project `PT`. Use the sibling `jira-cli` (`python jira.py` from that repo). Do not leave tickets sitting in To Do after work has started, and do not mark them Done unless the acceptance criteria are actually met in code.
+
+## Status
+
+- Move a story to **In Progress** when you start it. Name the branch after the key when practical (`feature/pt-23-…`).
+- Move it to **Done** only after the criteria are implemented and verified (tests, or the closest substitute).
+- Close a parent epic only when every child story is Done. If one child is still open, the epic stays In Progress.
+- Create tickets when new work appears (quality-loop stories, follow-ups, bugs). Do not silently expand an existing story past its description.
+
+## Comments
+
+Add a comment when something would otherwise live only in the agent's head:
+
+- A decision (why Zod `.strict()`, why validation is in the step not the client)
+- A discovery (the TypeScript type was compile-time only; a criterion was already satisfied)
+- A gap (what was *not* done, and why the ticket stayed open)
+
+Write comments in Jira wiki markup via `python jira.py comment KEY --body-file <file-or-->`. Do not put secrets, tokens, or local machine paths in comments.

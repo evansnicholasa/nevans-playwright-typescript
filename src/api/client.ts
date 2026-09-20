@@ -1,11 +1,7 @@
 import type { Logger } from "../logging/logger";
+import type { Order } from "./contracts";
 
-export type Order = {
-  id: number;
-  customer: string;
-  item: string;
-  createdAt: string;
-};
+export type { Order };
 
 export class ApiError extends Error {
   constructor(
