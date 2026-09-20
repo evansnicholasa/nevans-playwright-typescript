@@ -9,7 +9,8 @@ import { OrdersPage } from "../ui/orders-page";
 export type ScenarioState = {
   lastOrder?: Order;
   lastApiStatus?: number;
-  lastApiError?: string;
+  /** Kept unparsed so contract assertions see exactly what the API sent. */
+  lastApiResponseBody?: unknown;
   mqTimedOut?: boolean;
 };
 
