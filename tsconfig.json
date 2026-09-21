@@ -12,5 +12,5 @@
     "rootDir": ".",
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "features/**/*.ts", "playwright.config.ts"]
+  "include": ["src/**/*.ts", "features/**/*.ts", "loop/**/*.ts", "playwright.config.ts"]
 }

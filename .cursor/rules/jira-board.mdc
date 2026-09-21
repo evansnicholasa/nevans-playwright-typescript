@@ -5,7 +5,9 @@ alwaysApply: true
 
 # Jira board hygiene
 
-This repo is tracked in Jira project `PT`. Use the sibling `jira-cli` (`python jira.py` from that repo). Do not leave tickets sitting in To Do after work has started, and do not mark them Done unless the acceptance criteria are actually met in code.
+This repo is tracked in Jira project `PT`. Always pass `--project PT` to `jira.py create` (the CLI default may be another board). Use the sibling `jira-cli`. Do not leave tickets sitting in To Do after work has started, and do not mark them Done unless the acceptance criteria are actually met in code.
+
+PT is the *build* board for the framework and the quality loop. A separate Jira project will hold the example product stories the loop reads and files bugs against. Do not point loop agents at PT.
 
 ## Status
 
