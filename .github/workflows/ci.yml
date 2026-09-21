@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run loop-agent unit tests
+        run: npm run test:loop
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
