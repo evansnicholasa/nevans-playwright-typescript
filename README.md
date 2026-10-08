@@ -43,7 +43,7 @@ flowchart LR
 
 | Layer | What it is | Why it is here |
 | --- | --- | --- |
-| `demo/` | Express app + static UI | Something real to automate |
+| `demo-app/` | Express app + static UI | Something real to automate |
 | Postgres | `orders` table | Prove writes landed, not only that the UI said they did |
 | RabbitMQ | fanout exchange `orders` | Prove a side effect beyond HTTP |
 | `src/` | Config, logger, API/DB/MQ clients, page objects | The reusable framework |
@@ -56,16 +56,16 @@ flowchart LR
 
 | File | Used when |
 | --- | --- |
-| `.env.example` | Documented defaults (copy to `.env.local`) |
+| `.env.local` | Laptop runs against Docker Compose (`TEST_ENV=local`, default) |
 | `.env.ci` | GitHub Actions (`TEST_ENV=ci`) |
-| `.env.local` / `.env.staging` | Gitignored machine-specific overrides |
+| `.env.staging` | Gitignored overrides when pointing the harness at another app |
 
 Defaults match Docker Compose published ports (`http://localhost:3000`, local Postgres and RabbitMQ). Secrets never belong in git; `API_TOKEN` is an empty hook until you point the client at an authenticated API.
 
 ## How to add a test
 
 1. Add a `.feature` file under `features/`.
-2. Reuse or add a step in `features/steps/`.
+2. Reuse or add a step in `src/steps/`.
 3. Put locators in `src/ui/`, HTTP in `src/api/`, SQL in `src/db/`, AMQP in `src/mq/`.
 4. `npm test` runs `bddgen` then Playwright.
 
@@ -73,7 +73,7 @@ Gherkin should describe intent. Selectors, connection strings, and retry details
 
 ## Point this at another app
 
-1. Copy `.env.example` to `.env.staging` (or `.env.local`).
+1. Copy `.env.local` to `.env.staging`.
 2. Set `BASE_URL`, `DATABASE_URL`, `RABBITMQ_URL`, and `API_TOKEN` if the API needs a bearer header.
 3. Swap or extend page objects and Gherkin for that product's language.
 4. Keep the clients. They are URL- and connection-string driven on purpose.

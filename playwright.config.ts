@@ -6,7 +6,7 @@ const app = loadConfig();
 
 const testDir = defineBddConfig({
   features: "features/**/*.feature",
-  steps: ["src/fixtures/bdd.ts", "features/steps/**/*.ts"],
+  steps: ["src/fixtures/world.ts", "src/steps/**/*.ts"],
 });
 
 export default defineConfig({
