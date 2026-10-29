@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/evansnicholasa/nevans-playwright-typescript/actions/workflows/ci.yml/badge.svg)](https://github.com/evansnicholasa/nevans-playwright-typescript/actions/workflows/ci.yml)
 
-A clone-and-run Playwright framework aimed at hiring conversations. It is not a bag of specs: there is a real system under test (UI, REST API, Postgres, RabbitMQ), a typed harness around it, Gherkin for readable coverage, and CI that publishes HTML and Allure reports.
+A clone-and-run Playwright framework. It has a demo system under test (UI, REST API, Postgres, RabbitMQ), a typed harness around it, Gherkin for readable coverage, and CI that publishes HTML and Allure reports.
 
-## What you can prove in ten minutes
+## Quick start
 
 1. `docker compose up -d --wait --build`
 2. `npm test`
@@ -78,7 +78,7 @@ Gherkin should describe intent. Selectors, connection strings, and retry details
 3. Swap or extend page objects and Gherkin for that product's language.
 4. Keep the clients. They are URL- and connection-string driven on purpose.
 
-The demo app is a teaching aid, not the framework.
+The demo app exists only to give the framework something to test.
 
 ## Reporting
 
