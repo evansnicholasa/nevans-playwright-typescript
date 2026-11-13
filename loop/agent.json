@@ -1,0 +1,9 @@
+{
+  "runtime": "opencode",
+  "model": "opencode/big-pickle",
+  "fallback": [
+    { "runtime": "opencode", "model": "opencode/mimo-v2.5-free" },
+    { "runtime": "cursor", "model": "composer-2.5" },
+    { "runtime": "opencode", "model": "anthropic/claude-haiku-4-5" }
+  ]
+}
