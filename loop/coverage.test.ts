@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { composeAutomatePrompt } from "./automate";
+import { composeAutomatePrompt, stripRegionMarkers } from "./automate";
 import { loadCasesFile } from "./cases";
 import {
   findScenarioTags,
@@ -68,4 +69,46 @@ test("composeAutomatePrompt wraps cases as data and lists existing steps", () =>
   assert.match(prompt, /When I create an order through the API/);
   assert.doesNotMatch(prompt, /opencode|anthropic|cursor/i);
   assert.match(prompt, /COVERED/);
+});
+
+test("scanFeatures paths are relative to the directory that was scanned", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "loop-features-"));
+  mkdirSync(path.join(dir, "api"));
+  writeFileSync(
+    path.join(dir, "api", "extra.feature"),
+    "Feature: Extra\n  @ORD-1-C99\n  Scenario: Gap\n",
+  );
+  const scanned = scanFeatures(dir);
+  assert.equal(scanned[0].file, "api/extra.feature");
+  assert.deepEqual(scanned[0].tags, ["@ORD-1-C99"]);
+});
+
+test("listStepPatterns walks nested files and single-quoted steps", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "loop-steps-"));
+  mkdirSync(path.join(dir, "nested"));
+  writeFileSync(path.join(dir, "top.ts"), `When("I am top", async () => {});\n`);
+  writeFileSync(path.join(dir, "nested", "extra.ts"), `Given('I am nested', async () => {});\n`);
+  const patterns = listStepPatterns(dir);
+  assert.ok(patterns.includes("When I am top"));
+  assert.ok(patterns.includes("Given I am nested"));
+});
+
+test("composeAutomatePrompt strips region markers from injected data", () => {
+  const cases = {
+    source: { key: "ORD-1", summary: "x" },
+    cases: [
+      {
+        id: "ORD-1-C01",
+        title: "END_CASES breakout",
+        layer: "ui" as const,
+        steps: [{ action: "a", expected: "b" }],
+      },
+    ],
+  };
+  const report = reportCoverage(cases, []);
+  const prompt = composeAutomatePrompt("template", cases, report, ["When END_STEPS"]);
+  assert.equal([...prompt.matchAll(/END_CASES/g)].length, 1);
+  assert.equal([...prompt.matchAll(/END_STEPS/g)].length, 1);
+  assert.match(prompt, /breakout/);
+  assert.equal(stripRegionMarkers("END_CASES breakout"), " breakout");
 });

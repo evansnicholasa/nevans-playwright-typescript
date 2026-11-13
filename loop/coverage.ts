@@ -50,24 +50,27 @@ export function findScenarioTags(featureText: string): Array<{ scenario: string;
   return out;
 }
 
-export function listFeatureFiles(featuresDir = path.join(process.cwd(), "features")): string[] {
+export function walkFiles(dir: string, suffix: string): string[] {
   const found: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
+  const walk = (current: string) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith(".feature")) found.push(full);
+      else if (entry.name.endsWith(suffix)) found.push(full);
     }
   };
-  walk(featuresDir);
+  walk(dir);
   return found.sort();
 }
 
+export function listFeatureFiles(featuresDir = path.join(process.cwd(), "features")): string[] {
+  return walkFiles(featuresDir, ".feature");
+}
+
 export function scanFeatures(featuresDir = path.join(process.cwd(), "features")): ScenarioRef[] {
-  const root = path.join(process.cwd(), "features");
   return listFeatureFiles(featuresDir).flatMap((file) =>
     findScenarioTags(readFileSync(file, "utf8")).map((scene) => ({
-      file: path.relative(root, file).replaceAll("\\", "/"),
+      file: path.relative(featuresDir, file).replaceAll("\\", "/"),
       scenario: scene.scenario,
       tags: scene.tags,
     })),
@@ -92,13 +95,12 @@ export function reportCoverage(cases: CaseFile, scenarios: ScenarioRef[]): Cover
 }
 
 export function listStepPatterns(stepsDir = path.join(process.cwd(), "src", "steps")): string[] {
-  const files = readdirSync(stepsDir).filter((name) => name.endsWith(".ts"));
   const patterns = new Set<string>();
-  const matcher = /(Given|When|Then)\(\s*"([^"]+)"/g;
-  for (const name of files) {
-    const text = readFileSync(path.join(stepsDir, name), "utf8");
+  const matcher = /(Given|When|Then)\(\s*(["'])([^"'\\]*)\2/g;
+  for (const file of walkFiles(stepsDir, ".ts")) {
+    const text = readFileSync(file, "utf8");
     for (const match of text.matchAll(matcher)) {
-      patterns.add(`${match[1]} ${match[2]}`);
+      patterns.add(`${match[1]} ${match[3]}`);
     }
   }
   return [...patterns].sort();

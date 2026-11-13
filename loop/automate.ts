@@ -7,6 +7,10 @@ export function defaultAutomatePromptPath(): string {
   return path.join(process.cwd(), "loop", "prompts", "cases-to-gherkin.md");
 }
 
+export function stripRegionMarkers(text: string): string {
+  return text.replace(/BEGIN_[A-Z]+|END_[A-Z]+/g, "");
+}
+
 export function composeAutomatePrompt(
   template: string,
   cases: CaseFile,
@@ -16,14 +20,14 @@ export function composeAutomatePrompt(
   return `${template.trim()}
 
 BEGIN_CASES
-${stringifyYaml(cases).trim()}
+${stripRegionMarkers(stringifyYaml(cases).trim())}
 END_CASES
 
 BEGIN_COVERAGE
-${JSON.stringify(report, null, 2)}
+${stripRegionMarkers(JSON.stringify(report, null, 2))}
 END_COVERAGE
 
 BEGIN_STEPS
-${steps.join("\n")}
+${stripRegionMarkers(steps.join("\n"))}
 END_STEPS`;
 }
