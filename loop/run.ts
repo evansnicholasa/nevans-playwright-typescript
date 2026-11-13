@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
+import { composeAutomatePrompt, defaultAutomatePromptPath } from "./automate";
+import { loadCasesFile } from "./cases";
 import { loadAgentFile, resolvePlan } from "./config";
+import { listStepPatterns, reportCoverage, scanFeatures } from "./coverage";
 import { runChain } from "./execute";
 import {
   assertIssueKeyAllowed,
@@ -12,6 +15,18 @@ import {
   productProject,
 } from "./issue";
 import { fetchIssue } from "./jira";
+
+type CliValues = {
+  prompt?: string;
+  "prompt-file"?: string;
+  issue?: string;
+  "issue-file"?: string;
+  "cases-file"?: string;
+  coverage?: boolean;
+  "dry-run"?: boolean;
+  auto?: boolean;
+  config?: string;
+};
 
 function readPrompt(promptFile: string | undefined, prompt: string | undefined): string {
   if (prompt && promptFile) {
@@ -26,20 +41,36 @@ function readPrompt(promptFile: string | undefined, prompt: string | undefined):
   throw new Error("Pass --prompt or --prompt-file.");
 }
 
-async function resolvePrompt(values: {
-  prompt?: string;
-  "prompt-file"?: string;
-  issue?: string;
-  "issue-file"?: string;
-}): Promise<string> {
-  if (values.issue && values["issue-file"]) {
-    throw new Error("Pass either --issue or --issue-file, not both.");
+function allowedProductProject(): string {
+  return productProject(loadLoopFile());
+}
+
+function loadProductCases(filePath: string) {
+  const cases = loadCasesFile(filePath);
+  assertIssueKeyAllowed(cases.source.key, allowedProductProject());
+  return cases;
+}
+
+async function resolvePrompt(values: CliValues): Promise<string> {
+  const sources = [values.issue, values["issue-file"], values["cases-file"]].filter(Boolean);
+  if (sources.length > 1) {
+    throw new Error("Pass only one of --issue, --issue-file, or --cases-file.");
   }
+
+  if (values["cases-file"]) {
+    const cases = loadProductCases(values["cases-file"]);
+    const report = reportCoverage(cases, scanFeatures());
+    const template = values.prompt
+      ? values.prompt
+      : readFileSync(values["prompt-file"] ?? defaultAutomatePromptPath(), "utf8");
+    return composeAutomatePrompt(template, cases, report, listStepPatterns());
+  }
+
   if (!values.issue && !values["issue-file"]) {
     return readPrompt(values["prompt-file"], values.prompt);
   }
 
-  const allowed = productProject(loadLoopFile());
+  const allowed = allowedProductProject();
   if (values.issue) {
     assertIssueKeyAllowed(values.issue, allowed);
   }
@@ -64,11 +95,23 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
       prompt: { type: "string" },
       issue: { type: "string" },
       "issue-file": { type: "string" },
+      "cases-file": { type: "string" },
+      coverage: { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
       auto: { type: "boolean", default: false },
       config: { type: "string" },
     },
   });
+
+  if (values.coverage) {
+    if (!values["cases-file"]) {
+      throw new Error("Pass --cases-file with --coverage.");
+    }
+    const cases = loadProductCases(values["cases-file"]);
+    const report = reportCoverage(cases, scanFeatures());
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    return report.missing.length === 0 ? 0 : 1;
+  }
 
   const prompt = await resolvePrompt(values);
   const file = loadAgentFile(values.config);

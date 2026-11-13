@@ -1,0 +1,33 @@
+import path from "node:path";
+import { stringify as stringifyYaml } from "yaml";
+import type { CaseFile } from "./cases";
+import type { CoverageReport } from "./coverage";
+
+export function defaultAutomatePromptPath(): string {
+  return path.join(process.cwd(), "loop", "prompts", "cases-to-gherkin.md");
+}
+
+export function stripRegionMarkers(text: string): string {
+  return text.replace(/BEGIN_[A-Z]+|END_[A-Z]+/g, "");
+}
+
+export function composeAutomatePrompt(
+  template: string,
+  cases: CaseFile,
+  report: CoverageReport,
+  steps: string[],
+): string {
+  return `${template.trim()}
+
+BEGIN_CASES
+${stripRegionMarkers(stringifyYaml(cases).trim())}
+END_CASES
+
+BEGIN_COVERAGE
+${stripRegionMarkers(JSON.stringify(report, null, 2))}
+END_COVERAGE
+
+BEGIN_STEPS
+${stripRegionMarkers(steps.join("\n"))}
+END_STEPS`;
+}

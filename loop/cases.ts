@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 
@@ -35,6 +36,10 @@ export type CaseFile = z.infer<typeof caseFileSchema>;
 
 export function parseCaseFile(raw: string): CaseFile {
   return caseFileSchema.parse(parseYaml(raw));
+}
+
+export function loadCasesFile(filePath: string): CaseFile {
+  return parseCaseFile(readFileSync(filePath, "utf8"));
 }
 
 export const caseFileExampleYaml = `source:

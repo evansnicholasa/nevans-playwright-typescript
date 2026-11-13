@@ -3,6 +3,7 @@ Feature: Create an order in the UI
   I want to place an order from the web page
   So that it is stored and visible on the list
 
+  @ORD-1-C01
   Scenario: A customer can place an order
     Given I open the orders page
     When I submit an order for a unique customer
