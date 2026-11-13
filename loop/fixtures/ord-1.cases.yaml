@@ -1,0 +1,28 @@
+source:
+  key: ORD-1
+  summary: Place an order with a customer name and item
+cases:
+  - id: ORD-1-C01
+    title: Customer can place an order from the page
+    layer: ui
+    steps:
+      - action: Open the orders page and submit a unique customer and item
+        expected: The order appears in the list
+  - id: ORD-1-C02
+    title: API creates an order
+    layer: api
+    steps:
+      - action: POST /api/orders with customer and item
+        expected: Response is 201 and includes the created order
+  - id: ORD-1-C03
+    title: Missing customer is rejected
+    layer: api
+    steps:
+      - action: POST /api/orders with no customer
+        expected: Response is 400
+  - id: ORD-1-C04
+    title: Created order can be fetched by id
+    layer: api
+    steps:
+      - action: GET /api/orders/{id} for the created order
+        expected: Response is 200 and matches the created order

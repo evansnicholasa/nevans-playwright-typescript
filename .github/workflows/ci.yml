@@ -27,6 +27,9 @@ jobs:
       - name: Run loop-agent unit tests
         run: npm run test:loop
 
+      - name: Dry-run story-to-cases from fixture
+        run: npm run loop:cases -- --dry-run --issue-file loop/fixtures/ord-1.issue.json
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
