@@ -1,0 +1,8 @@
+{
+  "key": "ORD-1",
+  "fields": {
+    "project": { "key": "ORD" },
+    "summary": "Place an order with a customer name and item",
+    "description": "As a customer, I want to place an order with my name and an item so that the order is stored and I can see it on the list.\n\nAcceptance:\n- Submitting a customer name and item creates an order and shows it on the page.\n- POST /api/orders with customer and item returns 201.\n- Missing customer returns 400.\n- The created order can be fetched by id."
+  }
+}
