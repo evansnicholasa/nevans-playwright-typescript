@@ -47,6 +47,7 @@ async function resolvePrompt(values: {
   const issue = values["issue-file"]
     ? loadIssueFile(values["issue-file"])
     : await fetchIssue(values.issue as string);
+  assertIssueKeyAllowed(issue.key, allowed);
   assertProductIssue(issue, allowed);
 
   const template = values.prompt

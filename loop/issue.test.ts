@@ -7,11 +7,13 @@ import {
   assertIssueKeyAllowed,
   assertProductIssue,
   composeStoryPrompt,
+  flattenAdf,
   loadIssueFile,
   loadLoopFile,
+  parseIssue,
   productProject,
 } from "./issue";
-import { fetchIssue } from "./jira";
+import { assertJiraSite, fetchIssue } from "./jira";
 
 const fixture = path.join(process.cwd(), "loop", "fixtures", "ord-1.issue.json");
 
@@ -49,6 +51,17 @@ test("the ORD-1 fixture is allowed; PT keys are not", () => {
       ),
     /KAN/,
   );
+  assert.throws(
+    () =>
+      assertProductIssue(
+        {
+          key: "PT-38",
+          fields: { summary: "spoof", project: { key: "ORD" } },
+        },
+        "ORD",
+      ),
+    /build board/,
+  );
 });
 
 test("composeStoryPrompt includes the issue and the YAML schema, not a vendor", () => {
@@ -58,8 +71,31 @@ test("composeStoryPrompt includes the issue and the YAML schema, not a vendor", 
   );
   const prompt = composeStoryPrompt(template, loadIssueFile(fixture));
   assert.match(prompt, /ORD-1/);
+  assert.match(prompt, /BEGIN_ISSUE/);
+  assert.match(prompt, /END_ISSUE/);
   assert.match(prompt, /layer: ui/);
   assert.doesNotMatch(prompt, /opencode|anthropic|cursor/i);
+});
+
+test("ADF descriptions flatten to text", () => {
+  const issue = parseIssue({
+    key: "ORD-1",
+    fields: {
+      project: { key: "ORD" },
+      summary: "Place an order",
+      description: {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "As a customer I place an order." }],
+          },
+        ],
+      },
+    },
+  });
+  assert.match(flattenAdf(issue.fields.description), /As a customer I place an order/);
+  assert.match(composeStoryPrompt("template", issue), /As a customer I place an order/);
 });
 
 test("the ORD-1 case fixture parses against the schema", () => {
@@ -89,4 +125,28 @@ test("fetchIssue parses the Jira payload and does not leak the token into the UR
   assert.equal(seen.url, "https://example.atlassian.net/rest/api/2/issue/ORD-1");
   assert.match(seen.auth ?? "", /^Basic /);
   assert.doesNotMatch(seen.url, /secret-token/);
+});
+
+test("JIRA_SITE must be an https *.atlassian.net host", () => {
+  assert.equal(assertJiraSite("job-tracker.atlassian.net"), "job-tracker.atlassian.net");
+  assert.throws(() => assertJiraSite("evil.example"), /atlassian\.net/);
+  assert.throws(() => assertJiraSite("http://job-tracker.atlassian.net"), /atlassian\.net/);
+});
+
+test("fetchIssue refuses a non-Atlassian site before sending the token", async () => {
+  await assert.rejects(
+    () =>
+      fetchIssue(
+        "ORD-1",
+        {
+          JIRA_SITE: "evil.example",
+          JIRA_EMAIL: "qa@example.com",
+          JIRA_API_TOKEN: "secret-token",
+        },
+        async () => {
+          throw new Error("fetch must not run");
+        },
+      ),
+    /atlassian\.net/,
+  );
 });

@@ -7,7 +7,7 @@ const issueSchema = z.object({
   key: z.string().min(1),
   fields: z.object({
     summary: z.string().min(1),
-    description: z.string().nullable().optional(),
+    description: z.union([z.string(), z.record(z.unknown()), z.null()]).optional(),
     project: z.object({
       key: z.string().min(1),
     }),
@@ -63,6 +63,7 @@ export function assertProductIssue(
   issue: ProductIssue,
   allowedProject: string,
 ): ProductIssue {
+  assertIssueKeyAllowed(issue.key, allowedProject);
   const project = issue.fields.project.key.toUpperCase();
   if (project === "PT") {
     throw new Error(
@@ -77,6 +78,35 @@ export function assertProductIssue(
   return issue;
 }
 
+export function flattenAdf(node: unknown): string {
+  if (node == null) return "";
+  if (typeof node === "string") return node;
+  if (typeof node === "number" || typeof node === "boolean") return String(node);
+  if (Array.isArray(node)) return node.map(flattenAdf).join("");
+  if (typeof node === "object") {
+    const block = node as { type?: string; text?: string; content?: unknown[] };
+    const inner = (block.content ?? []).map(flattenAdf).join("");
+    const text = `${block.text ?? ""}${inner}`;
+    if (block.type === "paragraph" || block.type === "heading") {
+      return `${text}\n`;
+    }
+    return text;
+  }
+  return "";
+}
+
+export function issueDescription(issue: ProductIssue): string {
+  const raw = issue.fields.description;
+  if (raw == null) return "(no description)";
+  const text = (typeof raw === "string" ? raw : flattenAdf(raw)).trim();
+  return text || "(no description)";
+}
+
+function fenceIssueBody(text: string): string {
+  const sanitized = text.replace(/BEGIN_ISSUE/g, "").replace(/END_ISSUE/g, "");
+  return `BEGIN_ISSUE\n${sanitized}\nEND_ISSUE`;
+}
+
 export function parseIssue(raw: unknown): ProductIssue {
   return issueSchema.parse(raw);
 }
@@ -86,14 +116,13 @@ export function loadIssueFile(filePath: string): ProductIssue {
 }
 
 export function composeStoryPrompt(template: string, issue: ProductIssue): string {
-  const description = issue.fields.description?.trim() || "(no description)";
   return `${template.trim()}
 
 ## Issue
 - key: ${issue.key}
 - summary: ${issue.fields.summary}
 
-${description}
+${fenceIssueBody(issueDescription(issue))}
 
 ## Output schema
 Write one YAML document and nothing else. Do not wrap it in a markdown fence.

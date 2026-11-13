@@ -16,6 +16,28 @@ function parseEnvFile(filePath: string): Record<string, string> {
   return out;
 }
 
+export function assertJiraSite(site: string): string {
+  const withScheme = site.includes("://") ? site : `https://${site}`;
+  let parsed: URL;
+  try {
+    parsed = new URL(withScheme);
+  } catch {
+    throw new Error("JIRA_SITE must be an https Atlassian host (*.atlassian.net).");
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username ||
+    parsed.password ||
+    parsed.port !== "" ||
+    !host.endsWith(".atlassian.net") ||
+    host === "atlassian.net"
+  ) {
+    throw new Error("JIRA_SITE must be an https Atlassian host (*.atlassian.net).");
+  }
+  return host;
+}
+
 export function jiraEnv(env: NodeJS.ProcessEnv = process.env): {
   site: string;
   email: string;
@@ -37,7 +59,11 @@ export function jiraEnv(env: NodeJS.ProcessEnv = process.env): {
       `Missing ${missing.join(", ")} for --issue. Set them in the environment, or pass --issue-file.`,
     );
   }
-  return { site: site as string, email: email as string, token: token as string };
+  return {
+    site: assertJiraSite(site as string),
+    email: email as string,
+    token: token as string,
+  };
 }
 
 export async function fetchIssue(
