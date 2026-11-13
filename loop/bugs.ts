@@ -79,21 +79,38 @@ function flattenPlaywrightSpecs(node: unknown, acc: FailedTest[]): void {
       ...caseIdsFromText(title).map((id) => `@${id}`),
     ];
     const tests = record.tests as Array<Record<string, unknown>>;
-    for (const test of tests) {
-      const results = Array.isArray(test.results) ? (test.results as Array<Record<string, unknown>>) : [];
-      for (const result of results) {
-        if (result.status !== "failed" && result.status !== "timedOut") continue;
-        const err = result.error;
-        const message =
-          err && typeof err === "object" && "message" in err && typeof err.message === "string"
-            ? err.message
-            : typeof result.error === "string"
-              ? result.error
-              : undefined;
-        acc.push({ title, file, tags, error: message });
-      }
-    }
+    const failed = tests
+      .map(playwrightTestFailure)
+      .filter((row): row is { error?: string } => row !== undefined);
+    if (failed.length === 0) return;
+    acc.push({ title, file, tags, error: failed[0].error });
   }
+}
+
+function errorMessage(error: unknown): string | undefined {
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return typeof error === "string" ? error : undefined;
+}
+
+function lastFailedResult(results: Array<Record<string, unknown>>): Record<string, unknown> | undefined {
+  for (let i = results.length - 1; i >= 0; i--) {
+    if (results[i].status === "failed" || results[i].status === "timedOut") return results[i];
+  }
+  return undefined;
+}
+
+/** One outcome per Playwright test: skip flakes and passes; keep unexpected failures. */
+function playwrightTestFailure(test: Record<string, unknown>): { error?: string } | undefined {
+  const results = Array.isArray(test.results) ? (test.results as Array<Record<string, unknown>>) : [];
+  const status = test.status;
+  if (status === "flaky" || status === "expected" || status === "skipped") return undefined;
+  if (status !== "unexpected" && status !== undefined) return undefined;
+  if (status !== "unexpected" && results.some((result) => result.status === "passed")) return undefined;
+  const failed = lastFailedResult(results);
+  if (!failed) return undefined;
+  return { error: errorMessage(failed.error) };
 }
 
 export function parseReport(raw: unknown): FailedTest[] {

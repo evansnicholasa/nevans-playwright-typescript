@@ -7,6 +7,8 @@ import {
   draftBugs,
   jiraCreatePayload,
   loadReportFile,
+  type BugDraft,
+  type BugSkip,
 } from "./bugs";
 import { loadCasesFile } from "./cases";
 import { loadAgentFile, resolvePlan } from "./config";
@@ -59,7 +61,12 @@ function loadProductCases(filePath: string) {
   return cases;
 }
 
-async function resolvePrompt(values: CliValues): Promise<string> {
+type PromptResolution = {
+  prompt: string;
+  bugReport?: { drafts: BugDraft[]; skipped: BugSkip[] };
+};
+
+async function resolvePrompt(values: CliValues): Promise<PromptResolution> {
   const sources = [
     values.issue,
     values["issue-file"],
@@ -71,11 +78,14 @@ async function resolvePrompt(values: CliValues): Promise<string> {
   }
 
   if (values["report-file"]) {
-    const { drafts, skipped } = draftBugs(loadReportFile(values["report-file"]), allowedProductProject());
+    const bugReport = draftBugs(loadReportFile(values["report-file"]), allowedProductProject());
     const template = values.prompt
       ? values.prompt
       : readFileSync(values["prompt-file"] ?? defaultBugPromptPath(), "utf8");
-    return composeBugPrompt(template, drafts, skipped);
+    return {
+      prompt: composeBugPrompt(template, bugReport.drafts, bugReport.skipped),
+      bugReport,
+    };
   }
 
   if (values["cases-file"]) {
@@ -84,11 +94,11 @@ async function resolvePrompt(values: CliValues): Promise<string> {
     const template = values.prompt
       ? values.prompt
       : readFileSync(values["prompt-file"] ?? defaultAutomatePromptPath(), "utf8");
-    return composeAutomatePrompt(template, cases, report, listStepPatterns());
+    return { prompt: composeAutomatePrompt(template, cases, report, listStepPatterns()) };
   }
 
   if (!values.issue && !values["issue-file"]) {
-    return readPrompt(values["prompt-file"], values.prompt);
+    return { prompt: readPrompt(values["prompt-file"], values.prompt) };
   }
 
   const allowed = allowedProductProject();
@@ -105,7 +115,7 @@ async function resolvePrompt(values: CliValues): Promise<string> {
   const template = values.prompt
     ? values.prompt
     : readFileSync(values["prompt-file"] ?? defaultStoryPromptPath(), "utf8");
-  return composeStoryPrompt(template, issue);
+  return { prompt: composeStoryPrompt(template, issue) };
 }
 
 async function main(argv = process.argv.slice(2)): Promise<number> {
@@ -135,7 +145,7 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
     return report.missing.length === 0 ? 0 : 1;
   }
 
-  const prompt = await resolvePrompt(values);
+  const { prompt, bugReport } = await resolvePrompt(values);
   const file = loadAgentFile(values.config);
   const plan = resolvePlan(file);
   const { exitCode, results } = await runChain({
@@ -146,21 +156,15 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
   });
 
   const extra =
-    values["report-file"] && values["dry-run"]
-      ? (() => {
-          const { drafts, skipped } = draftBugs(
-            loadReportFile(values["report-file"] as string),
-            allowedProductProject(),
-          );
-          return {
-            bugs: drafts.map((draft) => ({
-              method: "POST",
-              path: "/rest/api/2/issue",
-              body: jiraCreatePayload(draft),
-            })),
-            skipped,
-          };
-        })()
+    bugReport && values["dry-run"]
+      ? {
+          bugs: bugReport.drafts.map((draft) => ({
+            method: "POST",
+            path: "/rest/api/2/issue",
+            body: jiraCreatePayload(draft),
+          })),
+          skipped: bugReport.skipped,
+        }
       : {};
 
   process.stdout.write(

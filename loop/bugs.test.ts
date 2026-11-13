@@ -45,36 +45,69 @@ test("jiraCreatePayload is an ORD Bug with a parent story and never PT", () => {
   );
 });
 
-test("Playwright JSON suites flatten to failed specs with tags", () => {
-  const failed = parseReport({
+function playwrightSpec(tests: unknown[]) {
+  return {
     suites: [
       {
-        suites: [
+        specs: [
           {
-            specs: [
-              {
-                title: "A customer can place an order @ORD-1-C01",
-                file: "create-order.feature",
-                tags: [{ name: "@ORD-1-C01" }],
-                tests: [
-                  {
-                    results: [
-                      { status: "failed", error: { message: "not visible" } },
-                      { status: "passed" },
-                    ],
-                  },
-                ],
-              },
-            ],
+            title: "A customer can place an order @ORD-1-C01",
+            file: "create-order.feature",
+            tags: [{ name: "@ORD-1-C01" }],
+            tests,
           },
         ],
       },
     ],
-  });
+  };
+}
+
+test("Playwright JSON suites flatten to failed specs with tags", () => {
+  const failed = parseReport(
+    playwrightSpec([
+      {
+        status: "unexpected",
+        results: [{ status: "failed", error: { message: "not visible" } }],
+      },
+    ]),
+  );
   assert.equal(failed.length, 1);
   const { drafts } = draftBugs(failed, "ORD");
   assert.equal(drafts[0].parent, "ORD-1");
   assert.match(drafts[0].description, /not visible/);
+});
+
+test("Playwright retries and extra projects collapse to one unexpected failure", () => {
+  const recovered = parseReport(
+    playwrightSpec([
+      {
+        results: [
+          { status: "failed", error: { message: "flaked" } },
+          { status: "passed" },
+        ],
+      },
+    ]),
+  );
+  assert.equal(recovered.length, 0);
+
+  const twoProjects = parseReport(
+    playwrightSpec([
+      {
+        status: "unexpected",
+        projectName: "chromium",
+        results: [{ status: "failed", error: { message: "chromium" } }],
+      },
+      {
+        status: "unexpected",
+        projectName: "firefox",
+        results: [{ status: "failed", error: { message: "firefox" } }],
+      },
+    ]),
+  );
+  assert.equal(twoProjects.length, 1);
+  const { drafts } = draftBugs(twoProjects, "ORD");
+  assert.equal(drafts.length, 1);
+  assert.match(drafts[0].description, /chromium/);
 });
 
 test("composeBugPrompt wraps drafts as data", () => {
