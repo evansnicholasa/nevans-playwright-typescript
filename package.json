@@ -10,7 +10,7 @@
   "scripts": {
     "bddgen": "bddgen",
     "test": "bddgen && playwright test",
-    "test:loop": "tsc && node --test dist/loop/config.test.js",
+    "test:loop": "tsc && node --test dist/loop/config.test.js dist/loop/execute.test.js dist/loop/spawn.test.js",
     "loop:agent": "tsc && node dist/loop/run.js",
     "test:headed": "bddgen && playwright test --headed",
     "report:html": "playwright show-report",

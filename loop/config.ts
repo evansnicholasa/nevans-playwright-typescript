@@ -27,7 +27,7 @@ const QUOTA_PATTERNS = [
   /free usage exceeded/i,
   /too many requests/i,
   /rate limit/i,
-  /\b429\b/,
+  /\b(HTTP|status)[ :]*429\b/i,
   /insufficient[_ ]quota/i,
   /credit balance/i,
   /add credits/i,
@@ -85,19 +85,28 @@ export function isRetryableProviderError(text: string): boolean {
   return QUOTA_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-export function requiredSecret(candidate: AgentCandidate): string {
+export function requiredSecret(candidate: AgentCandidate): string | undefined {
   if (candidate.runtime === "cursor") return "CURSOR_API_KEY";
   if (candidate.model.startsWith("anthropic/")) return "ANTHROPIC_API_KEY";
+  if (candidate.model.startsWith("opencode/")) return undefined;
   return "OPENCODE_API_KEY";
 }
 
 export function commandFor(
   candidate: AgentCandidate,
   prompt: string,
+  options: { auto?: boolean } = {},
 ): { argv: string[]; display: string } {
   const argv =
     candidate.runtime === "opencode"
-      ? ["opencode", "run", "--model", candidate.model, "--auto", prompt]
+      ? [
+          "opencode",
+          "run",
+          "--model",
+          candidate.model,
+          ...(options.auto ? ["--auto"] : []),
+          prompt,
+        ]
       : ["agent", "-p", prompt, "--model", candidate.model];
   return { argv, display: argv.map(quote).join(" ") };
 }

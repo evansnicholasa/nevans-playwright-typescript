@@ -50,9 +50,12 @@ test("command argv is runtime-specific and the prompt is not rewritten", () => {
     "run",
     "--model",
     "opencode/big-pickle",
-    "--auto",
     prompt,
   ]);
+  assert.deepEqual(
+    commandFor({ runtime: "opencode", model: "opencode/big-pickle" }, prompt, { auto: true }).argv,
+    ["opencode", "run", "--model", "opencode/big-pickle", "--auto", prompt],
+  );
   assert.deepEqual(commandFor({ runtime: "cursor", model: "composer-2.5" }, prompt).argv, [
     "agent",
     "-p",
@@ -64,10 +67,7 @@ test("command argv is runtime-specific and the prompt is not rewritten", () => {
 
 test("secret selection follows runtime, then Anthropic model prefix", () => {
   assert.equal(requiredSecret({ runtime: "cursor", model: "composer-2.5" }), "CURSOR_API_KEY");
-  assert.equal(
-    requiredSecret({ runtime: "opencode", model: "opencode/big-pickle" }),
-    "OPENCODE_API_KEY",
-  );
+  assert.equal(requiredSecret({ runtime: "opencode", model: "opencode/big-pickle" }), undefined);
   assert.equal(
     requiredSecret({ runtime: "opencode", model: "anthropic/claude-haiku-4-5" }),
     "ANTHROPIC_API_KEY",
@@ -78,6 +78,8 @@ test("quota and rate-limit text is retryable; a normal stack trace is not", () =
   assert.equal(isRetryableProviderError("Free usage exceeded, add credits"), true);
   assert.equal(isRetryableProviderError("too many requests, please try again"), true);
   assert.equal(isRetryableProviderError("HTTP 429"), true);
+  assert.equal(isRetryableProviderError("status:429"), true);
+  assert.equal(isRetryableProviderError("see line 429 in the stack"), false);
   assert.equal(isRetryableProviderError("TypeError: Cannot read properties of undefined"), false);
 });
 
