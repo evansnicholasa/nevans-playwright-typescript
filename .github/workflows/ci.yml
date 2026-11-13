@@ -30,6 +30,12 @@ jobs:
       - name: Dry-run story-to-cases from fixture
         run: npm run loop:cases -- --dry-run --issue-file loop/fixtures/ord-1.issue.json
 
+      - name: Check ORD-1 case coverage
+        run: npm run loop:coverage -- --cases-file loop/fixtures/ord-1.cases.yaml
+
+      - name: Dry-run cases-to-gherkin from fixture
+        run: npm run loop:automate -- --dry-run --cases-file loop/fixtures/ord-1.cases.yaml
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
