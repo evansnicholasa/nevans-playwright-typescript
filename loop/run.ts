@@ -1,6 +1,15 @@
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { composeAutomatePrompt, defaultAutomatePromptPath } from "./automate";
+import {
+  composeBugPrompt,
+  defaultBugPromptPath,
+  draftBugs,
+  jiraCreatePayload,
+  loadReportFile,
+  type BugDraft,
+  type BugSkip,
+} from "./bugs";
 import { loadCasesFile } from "./cases";
 import { loadAgentFile, resolvePlan } from "./config";
 import { listStepPatterns, reportCoverage, scanFeatures } from "./coverage";
@@ -22,6 +31,7 @@ type CliValues = {
   issue?: string;
   "issue-file"?: string;
   "cases-file"?: string;
+  "report-file"?: string;
   coverage?: boolean;
   "dry-run"?: boolean;
   auto?: boolean;
@@ -51,10 +61,31 @@ function loadProductCases(filePath: string) {
   return cases;
 }
 
-async function resolvePrompt(values: CliValues): Promise<string> {
-  const sources = [values.issue, values["issue-file"], values["cases-file"]].filter(Boolean);
+type PromptResolution = {
+  prompt: string;
+  bugReport?: { drafts: BugDraft[]; skipped: BugSkip[] };
+};
+
+async function resolvePrompt(values: CliValues): Promise<PromptResolution> {
+  const sources = [
+    values.issue,
+    values["issue-file"],
+    values["cases-file"],
+    values["report-file"],
+  ].filter(Boolean);
   if (sources.length > 1) {
-    throw new Error("Pass only one of --issue, --issue-file, or --cases-file.");
+    throw new Error("Pass only one of --issue, --issue-file, --cases-file, or --report-file.");
+  }
+
+  if (values["report-file"]) {
+    const bugReport = draftBugs(loadReportFile(values["report-file"]), allowedProductProject());
+    const template = values.prompt
+      ? values.prompt
+      : readFileSync(values["prompt-file"] ?? defaultBugPromptPath(), "utf8");
+    return {
+      prompt: composeBugPrompt(template, bugReport.drafts, bugReport.skipped),
+      bugReport,
+    };
   }
 
   if (values["cases-file"]) {
@@ -63,11 +94,11 @@ async function resolvePrompt(values: CliValues): Promise<string> {
     const template = values.prompt
       ? values.prompt
       : readFileSync(values["prompt-file"] ?? defaultAutomatePromptPath(), "utf8");
-    return composeAutomatePrompt(template, cases, report, listStepPatterns());
+    return { prompt: composeAutomatePrompt(template, cases, report, listStepPatterns()) };
   }
 
   if (!values.issue && !values["issue-file"]) {
-    return readPrompt(values["prompt-file"], values.prompt);
+    return { prompt: readPrompt(values["prompt-file"], values.prompt) };
   }
 
   const allowed = allowedProductProject();
@@ -84,7 +115,7 @@ async function resolvePrompt(values: CliValues): Promise<string> {
   const template = values.prompt
     ? values.prompt
     : readFileSync(values["prompt-file"] ?? defaultStoryPromptPath(), "utf8");
-  return composeStoryPrompt(template, issue);
+  return { prompt: composeStoryPrompt(template, issue) };
 }
 
 async function main(argv = process.argv.slice(2)): Promise<number> {
@@ -96,6 +127,7 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
       issue: { type: "string" },
       "issue-file": { type: "string" },
       "cases-file": { type: "string" },
+      "report-file": { type: "string" },
       coverage: { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
       auto: { type: "boolean", default: false },
@@ -113,7 +145,7 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
     return report.missing.length === 0 ? 0 : 1;
   }
 
-  const prompt = await resolvePrompt(values);
+  const { prompt, bugReport } = await resolvePrompt(values);
   const file = loadAgentFile(values.config);
   const plan = resolvePlan(file);
   const { exitCode, results } = await runChain({
@@ -123,7 +155,21 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
     auto: values.auto,
   });
 
-  process.stdout.write(`${JSON.stringify({ primary: plan.primary, attempts: results }, null, 2)}\n`);
+  const extra =
+    bugReport && values["dry-run"]
+      ? {
+          bugs: bugReport.drafts.map((draft) => ({
+            method: "POST",
+            path: "/rest/api/2/issue",
+            body: jiraCreatePayload(draft),
+          })),
+          skipped: bugReport.skipped,
+        }
+      : {};
+
+  process.stdout.write(
+    `${JSON.stringify({ primary: plan.primary, attempts: results, ...extra }, null, 2)}\n`,
+  );
   return exitCode;
 }
 

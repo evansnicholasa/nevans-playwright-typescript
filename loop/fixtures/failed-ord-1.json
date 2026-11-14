@@ -1,0 +1,30 @@
+{
+  "tests": [
+    {
+      "title": "A customer can place an order",
+      "file": "features/ui/create-order.feature",
+      "tags": ["@ORD-1-C01"],
+      "status": "failed",
+      "error": "Error: expect(locator).toBeVisible() failed"
+    },
+    {
+      "title": "Create and fetch an order",
+      "file": "features/api/orders.feature",
+      "tags": ["@ORD-1-C02", "@ORD-1-C04"],
+      "status": "passed"
+    },
+    {
+      "title": "Empty form shows an error",
+      "file": "features/ui/validation.feature",
+      "tags": [],
+      "status": "failed",
+      "error": "timeout"
+    },
+    {
+      "title": "Runtime unit test",
+      "tags": ["@PT-38-C01"],
+      "status": "failed",
+      "error": "should not file to the build board"
+    }
+  ]
+}

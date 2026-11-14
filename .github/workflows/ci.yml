@@ -36,6 +36,9 @@ jobs:
       - name: Dry-run cases-to-gherkin from fixture
         run: npm run loop:automate -- --dry-run --cases-file loop/fixtures/ord-1.cases.yaml
 
+      - name: Dry-run failure-to-bug from fixture
+        run: npm run loop:bugs -- --dry-run --report-file loop/fixtures/failed-ord-1.json
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
